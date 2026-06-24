@@ -8,6 +8,8 @@ public class TextBasedAdventure : MonoBehaviour
     {
         public string Name;
         public TileType Type;
+        public string Description;
+        public bool HasRoomBeenVisited;
     }
 
     [System.Serializable]
@@ -23,28 +25,31 @@ public class TextBasedAdventure : MonoBehaviour
         Item,
         Enemy,
         Exit,
+        Teleport,
+        Blockade,
     }
 
-    private Room[,] dungeon = { 
-                                {   new Room { Name = "Dark Cave",    Type = TileType.Empty},
-                                    new Room { Name = "Mossy Tunnel", Type = TileType.Item},
-                                    new Room { Name = "Crystal Room", Type = TileType.Empty} },
-                                
-                                {   new Room { Name = "Bone Chamber", Type = TileType.Enemy },
-                                    new Room { Name = "Flooded Hall", Type = TileType.Empty},
-                                    new Room { Name = "Iron Gate",    Type = TileType.Exit } }
-                              };
-    
+    private Room[,] dungeon = {
+                                {   new Room { Name = "Dark Cave",    Type = TileType.Empty, Description = "It's almost too dark to see...", HasRoomBeenVisited = false },
+                                    new Room { Name = "Mossy Tunnel", Type = TileType.Empty, Description = "The moss caked ground is easy to slip on", HasRoomBeenVisited = false },
+                                    new Room { Name = "Crystal Room", Type = TileType.Empty, Description = "Light refracts and bounces in this room like nothing you've seen before", HasRoomBeenVisited = false },
+                                    new Room { Name = "Teleporter",   Type = TileType.Teleport, Description = "A strange plate lies in the middle of the room", HasRoomBeenVisited = false } },
 
-    private string[,] tileNames = { { "Dark Cave"   /* 0,0 */,  "Mossy Tunnel" /* 0,1 */,   "Crystal Room" /* 0,2 */ },
-                                    { "Bone Chamber"/* 1,0 */,  "Flooded Hall" /* 1,1 */,   "Iron Gate"              },
-                                    { "Goblin Den",             "Armory",                   "Throne Room"            }
-                                    };
+                                {   new Room { Name = "Bone Chamber", Type = TileType.Enemy, Description = "You can almost taste the calcium particles floating in the air", HasRoomBeenVisited = false },
+                                    new Room { Name = "Flooded Hall", Type = TileType.Empty, Description = "The water in this hall goes up to your knees...", HasRoomBeenVisited = false },
+                                    new Room { Name = "Forge",    Type = TileType.Item, Description = "A furnace, still kindled, hums faintly", HasRoomBeenVisited = false },
+                                    new Room { Name = "Iron Gate",    Type = TileType.Exit, Description = "An iron gate, presumably the exit bars your path", HasRoomBeenVisited = false } },
 
-    private TileType[,] tileTypes = {   { TileType.Empty, TileType.Item,  TileType.Empty},
-                                        { TileType.Enemy, TileType.Empty, TileType.Exit },
-                                        { TileType.Empty, TileType.Enemy, TileType.Item }
-                                    };
+                                {   new Room { Name = "Teleporter", Type = TileType.Teleport, Description = "A strange plate lies in the middle of the room", HasRoomBeenVisited = false },
+                                    new Room { Name = "Goblin Den", Type = TileType.Enemy, Description = "Scampering can be heard faintly", HasRoomBeenVisited = false },
+                                    new Room { Name = "Armory",    Type = TileType.Item, Description = "Suits of armor line the walls, some carrying grim weaponry", HasRoomBeenVisited = false },
+                                    new Room { Name = "Throne Room", Type = TileType.Empty, Description = "A lonely throne sits at the end of the hall", HasRoomBeenVisited = false } },
+
+                                {   new Room { Name = "Blockade", Type = TileType.Blockade, Description = "A wall blocks your path, you cannot proceed this way", HasRoomBeenVisited = false },
+                                    new Room { Name = "Pitfall Bridge", Type = TileType.Empty, Description = "It'd be all too easy to slip and fall into the pit below", HasRoomBeenVisited = false },
+                                    new Room { Name = "Courtyard",    Type = TileType.Empty, Description = "The sun feels nice on the skin", HasRoomBeenVisited = false },
+                                    new Room { Name = "Living Quarters", Type = TileType.Item, Description = "Furniture indicates this to be a lived-in space", HasRoomBeenVisited = false} }
+                                };
 
     private int playerRow = 0;
     private int playerCol = 0;
@@ -57,6 +62,7 @@ public class TextBasedAdventure : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        SetPlayerPosition(playerRow, playerCol);
         OutputTileInformation();
         rb = GetComponent<Rigidbody>();
     }
@@ -70,14 +76,21 @@ public class TextBasedAdventure : MonoBehaviour
             return;
         }
         SetPlayerPosition(newRow, newCol);
+       // HasRoomBeenVisited = true;
         OutputTileInformation();
     }
 
     private void OutputTileInformation()
     {
-        Debug.Log("You are in: " + tileNames[playerRow, playerCol]);
+        Debug.Log("You are in: " + dungeon[playerRow, playerCol].Name);
 
-        switch (tileTypes[playerRow, playerCol])
+        if (!dungeon[playerRow, playerCol].HasRoomBeenVisited)
+        {
+            Debug.Log(dungeon[playerRow, playerCol].Description);
+            dungeon[playerRow, playerCol].HasRoomBeenVisited = true;
+        }
+
+        switch (dungeon[playerRow, playerCol].Type)
         {
             case TileType.Empty:
                 Debug.Log("There is nothing here.");
@@ -92,6 +105,12 @@ public class TextBasedAdventure : MonoBehaviour
                 break;
             case TileType.Exit:
                 Debug.Log("You see a way out");
+                break;
+            case TileType.Blockade:
+                Debug.Log("You cannot proceed");
+                break;
+            case TileType.Teleport:
+                Debug.Log("You can teleport here");
                 break;
             default:
                 Debug.LogError("Invalid TileType");
@@ -135,8 +154,15 @@ public class TextBasedAdventure : MonoBehaviour
     {
         if (CheckIfNewPositionInTileBounds(newRow, newCol))
         {
-            playerRow = newRow;
-            playerCol = newCol;
+            if (dungeon[newRow, newCol].Type != TileType.Blockade)
+            {
+                playerRow = newRow;
+                playerCol = newCol;
+            }
+            else
+            {
+                Debug.Log("A blockade lies here");
+            }
         }
         else
         {
@@ -152,7 +178,7 @@ public class TextBasedAdventure : MonoBehaviour
     /// <returns>True if it is within the bounds, false if not</returns>
     private bool CheckIfNewPositionInTileBounds(int newRow, int newCol)
     {
-        return (newRow >= 0 && newRow < tileNames.GetLength(0)) && (newCol >= 0 && newCol < tileNames.GetLength(1));
+        return (newRow >= 0 && newRow < dungeon.GetLength(0)) && (newCol >= 0 && newCol < dungeon.GetLength(1));
     }
 
     /// <summary>
@@ -186,6 +212,17 @@ public class TextBasedAdventure : MonoBehaviour
         {
             Debug.Log("You pressed " + KeyCode.S);
             newRow++;
+        }
+        else if (Input.GetKeyDown(KeyCode.E))
+        {
+            Debug.Log(dungeon[playerRow, playerCol].Description);
+        }
+        else if (dungeon[playerRow, playerCol].Type == TileType.Teleport)
+        {
+            if (Input.GetKeyDown(KeyCode.Q))
+            {
+                dungeon[playerRow, playerCol].Type = TileType.Teleport;
+            }
         }
         else
         {
